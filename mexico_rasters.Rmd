@@ -8,18 +8,31 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(raster) ### NOTE: attaching this BEFORE tidyverse
+library(raster) ### NOTE: attach this BEFORE tidyverse
 library(tidyverse)
 library(here)
 library(sf)
 library(fasterize)
+library(patchwork)
 ```
+
+
+I generated the raster file *mexico_median.tif* using [Google Earth Engine](https://earthengine.google.com). 
+It shows the median of the images in the USGS Landsat 8 Collection 1 (Tier 1 TOA Reflectance) from May 1st 2013 to May 1st 2014. 
+To read more on how how I used Google Earth Engine to create this raster file, check out my other blog post on this topic!
+
+
+# Raster exploration
+
+The Landsat 8 raster I produced using the 
+
 
 ```{r}
 landsat_file <- here('mexico_median.tif')
 
 ls_stack <- raster::stack(landsat_file)
-
+plot(ls_stack)
+#plotRGB(ls_stack, scale=1.5)
 ```
 
 
@@ -31,8 +44,14 @@ blue <- raster(landsat_file, band = 3) # B2 band = blue
 #ls_stack <- raster::stack(landsat_file)
 #ls_stack
 
+plot(red, col = hcl.colors(n = 100, palette = 'Reds 2'))
+plot(green, col = hcl.colors(n = 100, palette = 'Greens 2'))
 plot(blue, col = hcl.colors(n = 100, palette = 'Blues 2'))
+
 ```
+# Masking
+
+To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley.
 
 ```{r}
 mex_sf <- read_sf(here('stanford-zc863pb5331-shapefile/zc863pb5331.shp')) %>%
@@ -49,8 +68,19 @@ mask(red, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Reds 2'))
 ```
 
 ```{r}
-red <- mask(red, mex_rast)
-blue <- mask(blue, mex_rast)
-green <- mask(green,mex_rast)
+red <- mask(red, mex_rast)*255
+blue <- mask(blue, mex_rast)*255
+green <- mask(green,mex_rast)*255
+
+#masked_mex <- mask(ls_stack, mex_rast)
+#plot(masked_mex)
+#plotRGB(ls_stack, scale=1.5)
+masked_mex <- raster::stack(red,blue,green)
+plot(masked_mex)
+plotRGB(masked_mex, scale=160, colNA='skyblue1')
 ```
 
+# Citation
+https://geodata.lib.berkeley.edu/catalog/stanford-zc863pb5331
+
+https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C01_T1_TOA
