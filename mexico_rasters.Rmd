@@ -18,18 +18,21 @@ library(patchwork)
 
 
 I generated the raster file *mexico_median.tif* using [Google Earth Engine](https://earthengine.google.com). 
+It is available in this [project's GitHub repo](https://github.com/carmengg/mexico_rasters.git). 
 This raster shows the median of the images in the USGS Landsat 8 Collection 1 (Tier 1 TOA Reflectance) from May 1st 2013 to May 1st 2014. 
 To read more on how how I used Google Earth Engine to create this raster file, check out my other blog post on this topic!
 
 
 # Raster exploration
 
-The Landsat 8 raster I produced using the 
+The Landsat 8 raster I produced using Google Earth Engine is a coarse approximation of Mexico's shape. 
+It is calculated using all the Landsat 8 scenes that intersect a coarse polygon enclosing Mexico. 
+We can see here the red, green and blue layers (RGB).
 
 
 ```{r, include=FALSE}
 # --- Reading individual layers
-landsat_file <- here('mexico_median.tif')
+landsat_file <- here('mexico_median_rgb.tif')
 
 red <- raster(landsat_file, band = 1) # B4 band = red
 green <- raster(landsat_file, band = 2) # B3 band = green
@@ -37,9 +40,9 @@ blue <- raster(landsat_file, band = 3) # B2 band = blue
 ```
 
 
-```{r, out.width = "50%", out.height = "50%"}
+```{r, out.width = "30%", out.height = "30%"}
 # -----  EXPLORING RGB LAYERS -----
-mex_rgb <- raster::stack(here('mexico_median.tif')) # read all bands as raster stack
+mex_rgb <- raster::stack(here('mexico_median_rgb.tif')) # read all bands as raster stack
 #mex_rgb
 # looking at stack information we get that:
 #   B4 band = red
@@ -65,7 +68,9 @@ for (i in 1:3){
 
 # Masking
 
-To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley. To use the polygon shapefile for masking we need to convert it into a raster.
+To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley. 
+To use the polygon shapefile for masking we need to convert it into a raster. 
+Then we can use it mask each layer of the raster stack.
 
 ```{r}
 # --- read shapefile
@@ -74,15 +79,17 @@ mex_sf <- read_sf(here('stanford-zc863pb5331-shapefile/zc863pb5331.shp')) %>%
 
 # --- transform shapefile into raster using red band as guide
 mex_rast <- fasterize::fasterize(mex_sf, mex_rgb[[1]])
-plot(mex_rast,axes=FALSE, box=FALSE)
 #writeRaster(mex_rast, 'data/county.tif') #export mask raster
+plot(mex_rast,axes=FALSE, box=FALSE)
+
 ```
 
-```{r}
+```{r, out.width = "30%", out.height = "30%"}
 # --- mask each layer
 for (i in 1:3){
   mex_rgb[[i]] <- mask(mex_rgb[[i]],mex_rast)
 }
+rm(mex_rast)
 
 # --- plot masked RGB bands
 for (i in 1:3){
@@ -93,17 +100,77 @@ for (i in 1:3){
 
 # True Color
 
+Now that we have the masked red, green and blue bands, we can use these to make a true color composite image of Mexico.
+It is a close replica to what we can see with our eyes. Isn't it pretty? Notice too the storm around Tabasco. This is slightly incovenient because it doesn't allow to have a clear view of the ground.
+
 ```{r}
-red <- mask(red, mex_rast)*255
-blue <- mask(blue, mex_rast)*255
-green <- mask(green,mex_rast)*255
 
+#for (i in 1:3){
+#  mex_rgb[[i]] <- mex_rgb[[i]]*255
+#}
 
-masked_mex <- raster::stack(red,blue,green)
-plotRGB(masked_mex, scale=160, colNA='skyblue1')
+plotRGB(mex_rgb, scale=0.63, colNA='skyblue1')
 ```
 
-# Citation
+# NDVI: Normalized Differential Vegetation Index
+
+## Near-Infrared Band
+To calculate the NDVI we need the near-infrared band too. 
+Since the previous raster only contained RGB bands, here I added a raster I generated with Google Earth Engine that shows the median of the near-infrared band from May 1, 2013 to May 1, 2014.
+
+```{r}
+# --- read nir raster
+nir <- raster(here('mexico_median_nir.tif')) 
+
+# --- masking (note: had to update mask to match extent of nir raster)
+mex_rast2 <- fasterize::fasterize(mex_sf, nir)
+nir <- mask(nir, mex_rast2)
+rm(mex_rast2)
+
+# --- plot
+color_graph(nir,'OrRd')
+
+```
+
+## NDVI calculation
+
+To calculate the NDVI we only need the red and near-infrared bands of the satellite image.
+So to avoid indices we can extract the red layer we need. 
+
+```{r}
+red <- mex_rgb[[1]]
+ndvi <- (nir - red) / (nir + red)
+#plot(ndvi, col = hcl.colors(100, 'Grays'), axes=FALSE)
+```
+
+
+```{r}
+is_forest <- function(x, thresh = .4) {
+  y <- ifelse(x >= thresh, 1, NA)
+  return(y)
+}
+
+forest <- calc(ndvi, fun = is_forest)
+plot(forest, col = 'green4')
+```
+
+```{r}
+ndvi_df <- raster::rasterToPoints(ndvi) %>%
+  as.data.frame()
+forest_df <- raster::rasterToPoints(forest) %>%
+  as.data.frame()
+
+ggplot(data = ndvi_df, aes(x = x, y = y, fill = layer)) +
+  geom_raster() +
+  geom_raster(data = forest_df, fill = 'green') +
+  coord_sf(expand = 0) +
+  scale_fill_gradient(low = 'black', high = 'white') +
+  theme_void() +
+  theme(panel.background = element_rect(fill = 'slateblue4'))
+```
+
+
+# References
 https://geodata.lib.berkeley.edu/catalog/stanford-zc863pb5331
 
 https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C01_T1_TOA
