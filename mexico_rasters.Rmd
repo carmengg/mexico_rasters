@@ -1,0 +1,56 @@
+---
+title: "mexico_rasters"
+author: "Carmen Galaz-García"
+date: "5/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(raster) ### NOTE: attaching this BEFORE tidyverse
+library(tidyverse)
+library(here)
+library(sf)
+library(fasterize)
+```
+
+```{r}
+landsat_file <- here('mexico_median.tif')
+
+ls_stack <- raster::stack(landsat_file)
+
+```
+
+
+```{r}
+red <- raster(landsat_file, band = 1) # B4 band = red
+green <- raster(landsat_file, band = 2) # B3 band = green
+blue <- raster(landsat_file, band = 3) # B2 band = blue
+
+#ls_stack <- raster::stack(landsat_file)
+#ls_stack
+
+plot(blue, col = hcl.colors(n = 100, palette = 'Blues 2'))
+```
+
+```{r}
+mex_sf <- read_sf(here('stanford-zc863pb5331-shapefile/zc863pb5331.shp')) %>%
+  st_transform(crs(red))   # match CRS
+
+mex_rast <- fasterize::fasterize(mex_sf, red)
+plot(mex_rast)
+#writeRaster(mex_rast, 'data/county.tif')
+```
+
+```{r}
+mask(red, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Reds 2'))
+
+```
+
+```{r}
+red <- mask(red, mex_rast)
+blue <- mask(blue, mex_rast)
+green <- mask(green,mex_rast)
+```
+
