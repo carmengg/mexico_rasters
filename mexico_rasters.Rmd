@@ -35,16 +35,29 @@ The Landsat 8 raster I produced using the
 
 
 
-```{r}
+```{r, out.width = "50%", out.height = "50%"}
+# -----  EXPLORING RGB LAYERS -----
 landsat_file <- here('mexico_median.tif')
 
 red <- raster(landsat_file, band = 1) # B4 band = red
 green <- raster(landsat_file, band = 2) # B3 band = green
 blue <- raster(landsat_file, band = 3) # B2 band = blue
 
-plot(red, col = hcl.colors(n = 100, palette = 'Reds 2'))
-plot(green, col = hcl.colors(n = 100, palette = 'Greens 2'))
-plot(blue, col = hcl.colors(n = 100, palette = 'Blues 2'))
+# ---- Define Plot Function ----
+color_graph <- function(band,color){
+  return (plot(band, 
+               col = hcl.colors(n = 100, palette = color),
+               axes = FALSE,
+               legend = FALSE)
+          )
+}
+# --- Colors
+RGB = c('Reds 2', 'Greens 2', 'Blues 2')
+
+# --- plot RGB bands
+color_graph(red, RGB[1])
+color_graph(green, RGB[2])
+color_graph(blue, RGB[3])
 
 ```
 
@@ -59,11 +72,17 @@ mex_sf <- read_sf(here('stanford-zc863pb5331-shapefile/zc863pb5331.shp')) %>%
 
 # --- transform shapefile into raster using red band as guide
 mex_rast <- fasterize::fasterize(mex_sf, red)
-plot(mex_rast)
+plot(mex_rast,axes=FALSE, box=FALSE)
 #writeRaster(mex_rast, 'data/county.tif') #export mask raster
 ```
 
 ```{r}
+
+# --- plot RGB bands
+color_graph(red, RGB[1])
+color_graph(green, RGB[2])
+color_graph(blue, RGB[3])
+
 mask(red, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Reds 2'))
 mask(green, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Greens 2'))
 mask(blue, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Blues 2'))
