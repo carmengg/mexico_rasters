@@ -18,7 +18,7 @@ library(patchwork)
 
 
 I generated the raster file *mexico_median.tif* using [Google Earth Engine](https://earthengine.google.com). 
-It shows the median of the images in the USGS Landsat 8 Collection 1 (Tier 1 TOA Reflectance) from May 1st 2013 to May 1st 2014. 
+This raster shows the median of the images in the USGS Landsat 8 Collection 1 (Tier 1 TOA Reflectance) from May 1st 2013 to May 1st 2014. 
 To read more on how how I used Google Earth Engine to create this raster file, check out my other blog post on this topic!
 
 
@@ -27,43 +27,47 @@ To read more on how how I used Google Earth Engine to create this raster file, c
 The Landsat 8 raster I produced using the 
 
 
-```{r}
-landsat_file <- here('mexico_median.tif')
-
-ls_stack <- raster::stack(landsat_file)
-plot(ls_stack)
-#plotRGB(ls_stack, scale=1.5)
+```{r, include=FALSE }
+# ls_stack <- raster::stack(landsat_file) # read all 3 bands as raster stack
+# plot(ls_stack) 
+# plotRGB(ls_stack, scale=1.5)  # scale = 1.5 bc bands go from 0 to 1
 ```
 
 
+
 ```{r}
+landsat_file <- here('mexico_median.tif')
+
 red <- raster(landsat_file, band = 1) # B4 band = red
 green <- raster(landsat_file, band = 2) # B3 band = green
 blue <- raster(landsat_file, band = 3) # B2 band = blue
-
-#ls_stack <- raster::stack(landsat_file)
-#ls_stack
 
 plot(red, col = hcl.colors(n = 100, palette = 'Reds 2'))
 plot(green, col = hcl.colors(n = 100, palette = 'Greens 2'))
 plot(blue, col = hcl.colors(n = 100, palette = 'Blues 2'))
 
 ```
+
 # Masking
 
-To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley.
+To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley. To use the polygon shapefile for masking we need to convert it into a raster.
 
 ```{r}
+# --- read shapefile
 mex_sf <- read_sf(here('stanford-zc863pb5331-shapefile/zc863pb5331.shp')) %>%
   st_transform(crs(red))   # match CRS
 
+# --- transform shapefile into raster using red band as guide
 mex_rast <- fasterize::fasterize(mex_sf, red)
 plot(mex_rast)
-#writeRaster(mex_rast, 'data/county.tif')
+#writeRaster(mex_rast, 'data/county.tif') #export mask raster
 ```
 
 ```{r}
 mask(red, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Reds 2'))
+mask(green, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Greens 2'))
+mask(blue, mex_rast) %>% plot(col = hcl.colors(n = 100, palette = 'Blues 2'))
+
 
 ```
 
@@ -72,11 +76,8 @@ red <- mask(red, mex_rast)*255
 blue <- mask(blue, mex_rast)*255
 green <- mask(green,mex_rast)*255
 
-#masked_mex <- mask(ls_stack, mex_rast)
-#plot(masked_mex)
-#plotRGB(ls_stack, scale=1.5)
+
 masked_mex <- raster::stack(red,blue,green)
-plot(masked_mex)
 plotRGB(masked_mex, scale=160, colNA='skyblue1')
 ```
 
