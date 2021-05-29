@@ -133,44 +133,100 @@ color_graph(nir,'OrRd')
 ```
 
 ## NDVI calculation
+According to the [Earth Observing System](
+https://eos.com/blog/ndvi-faq-all-you-need-to-know-about-ndvi/)
 
-To calculate the NDVI we only need the red and near-infrared bands of the satellite image.
-So to avoid indices we can extract the red layer we need. 
+
+> The results of the NDVI calculation range from -1 to 1. Negative values correspond to areas with water surfaces, manmade structures, rocks, clouds, snow; bare soil usually falls within 0.1- 0.2 range; and plants will always have positive values between 0.2 and 1. Healthy, dense vegetation canopy should be above 0.5, and sparse vegetation will most likely fall within 0.2 to 0.5. 
+
+The NDVI is calculated using the near-infrared and red bands of the satellite image. The formula is
+$$NDVI = \frac{NIR - Red}{NIR + Red}.$$
+In this section we will create a map that outlines zones in Mexico with dense vegetation ($0.5\leq NDVI$) based on the   [https://github.com/oharac/esm244_w2021_lab6_rasters](code by C. O'Hara).
 
 ```{r}
-red <- mex_rgb[[1]]
-ndvi <- (nir - red) / (nir + red)
-#plot(ndvi, col = hcl.colors(100, 'Grays'), axes=FALSE)
-```
+# ---- NDVI calculation ----
+ndvi <- (nir - mex_rgb[[1]]) / (nir + mex_rgb[[1]]) 
 
 
-```{r}
-is_forest <- function(x, thresh = .4) {
-  y <- ifelse(x >= thresh, 1, NA)
-  return(y)
+# --- Dense Vegetation Function ---
+Fdense_veg <- function(x) {
+  return(ifelse(0.5<=x, 1, NA))
 }
-
-forest <- calc(ndvi, fun = is_forest)
-plot(forest, col = 'green4')
-```
-
-```{r}
-ndvi_df <- raster::rasterToPoints(ndvi) %>%
-  as.data.frame()
-forest_df <- raster::rasterToPoints(forest) %>%
+# --- dense vegetation data frame
+df_dense <- calc(ndvi, fun = Fdense_veg) %>% 
+   raster::rasterToPoints() %>%
+   as.data.frame()
+# --- ndvi data frame
+df_ndvi <- ndvi %>% 
+  raster::rasterToPoints() %>%
   as.data.frame()
 
-ggplot(data = ndvi_df, aes(x = x, y = y, fill = layer)) +
-  geom_raster() +
-  geom_raster(data = forest_df, fill = 'green') +
+
+ggplot() +
+  geom_tile(data = df_ndvi, aes(x = x, y = y, fill = layer)) +
+  geom_tile(data = df_dense, aes(x = x, y = y),fill = 'green4') +
   coord_sf(expand = 0) +
   scale_fill_gradient(low = 'black', high = 'white') +
-  theme_void() +
-  theme(panel.background = element_rect(fill = 'slateblue4'))
+  theme_void()
 ```
 
+<!--
+## Vegetation zones
+
+
+In this section we will create a map that outlines zones in Mexico with dense vegetation ($0.7\leq NDVI$), moderately dense vegetation ($0.3\leq NDVI < 0.7$) and sparse vegetation ($0.2 \leq NDVI <0.3$).
+-->
+
+
+```{r, include = FALSE}
+# ---- NDVI calculation ----
+# red <- mex_rgb[[1]]  
+# ndvi <- (nir - red) / (nir + red)
+# #plot(ndvi, col = hcl.colors(100, 'Grays'), axes=FALSE)
+# # ndvi_df <- raster::rasterToPoints(ndvi) %>%
+# #   as.data.frame()
+# 
+# # --- Dense Vegetation Function & Data Frame ---
+# Fdense_veg <- function(x) {
+#   y <- ifelse(0.7 <= x, 1, NA)
+#   return(y)
+# }
+# dense_veg_df <- calc(ndvi, fun = Fdense_veg) %>% 
+#   raster::rasterToPoints() %>%
+#   as.data.frame()
+# 
+# # --- Moderate Vegetation Function & Data Frame ---
+# Fmod_veg <- function(x) {
+#   y <- ifelse(0.3 <= x && x < 0.7, 1, NA)
+#   return(y)
+# }
+# mod_veg_df <- calc(ndvi, fun = Fmod_veg) %>% 
+#   raster::rasterToPoints() %>%
+#   as.data.frame()
+# 
+# # --- Sparse Vegetation Function & Data Frame ---
+# Fsparse_veg <- function(x) {
+#   y <- ifelse(0.1 <= x && x < 0.3, 1, NA)
+#   return(y)
+# }
+# sparse_veg_df <- calc(ndvi, fun = Fsparse_veg) %>% 
+#   raster::rasterToPoints() %>%
+#   as.data.frame()
+
+
+# ggplot() +
+#   #geom_tile(data = ndvi_df, aes(x = x, y = y, fill = layer)) +
+#   geom_tile(data = dense_veg_df, aes(x = x, y = y),fill = 'darkgreen') +
+#   geom_tile(data = mod_veg_df, aes(x = x, y = y),fill = 'palegreen3') +
+#   geom_tile(data = sparse_veg_df, aes(x = x, y = y),fill = 'darkkhaki') +
+#   coord_sf(expand = 0) +
+#   scale_fill_gradient(low = 'black', high = 'white') +
+#   theme_void() 
+```
 
 # References
 https://geodata.lib.berkeley.edu/catalog/stanford-zc863pb5331
 
 https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C01_T1_TOA
+
+https://github.com/oharac/esm244_w2021_lab6_rasters
