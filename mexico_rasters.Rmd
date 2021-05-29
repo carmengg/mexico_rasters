@@ -1,12 +1,18 @@
 ---
-title: "mexico_rasters"
+title: "Analysis of Landsat 8 raster images of Mexico"
 author: "Carmen Galaz-García"
 date: "5/28/2021"
-output: html_document
+output: 
+  html_document:
+    #theme: cerulean
+    code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, cache=TRUE)
 
 library(raster) ### NOTE: attach this BEFORE tidyverse
 library(tidyverse)
@@ -17,11 +23,16 @@ library(patchwork)
 ```
 
 
+# About the Data
+
 I generated the raster file *mexico_median.tif* using [Google Earth Engine](https://earthengine.google.com). 
 It is available in this [project's GitHub repo](https://github.com/carmengg/mexico_rasters.git). 
 This raster shows the median of the images in the USGS Landsat 8 Collection 1 (Tier 1 TOA Reflectance) from May 1st 2013 to May 1st 2014. 
-To read more on how how I used Google Earth Engine to create this raster file, check out my other blog post on this topic!
+I will probably write another blog post about how I used Google Earth Engine! Meanwhile, here's a screenshot of the Java script.
 
+![Google Earth Engine script to create Mexico RGB raster file](mexico_engine.png)
+<br>
+<br>
 
 # Raster exploration
 
@@ -66,9 +77,12 @@ for (i in 1:3){
 }
 ```
 
+<br>
+<br>
+
 # Masking
 
-To do the masking and select only the region corresponding to Mexico I used a polygon shapefile made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley. 
+To do the masking and select only the region corresponding to Mexico I used a [https://geodata.lib.berkeley.edu/catalog/stanford-zc863pb5331](polygon shapefile) made by Hijmans, Robert J. from the Museum of Vertebrate Zoology at UC Berkeley. 
 To use the polygon shapefile for masking we need to convert it into a raster. 
 Then we can use it mask each layer of the raster stack.
 
@@ -97,11 +111,13 @@ for (i in 1:3){
 }
 
 ```
+<br>
+<br>
 
 # True Color
 
 Now that we have the masked red, green and blue bands, we can use these to make a true color composite image of Mexico.
-It is a close replica to what we can see with our eyes. Isn't it pretty? Notice too the storm around Tabasco. This is slightly incovenient because it doesn't allow to have a clear view of the ground.
+It is a close replica to what we can see with our eyes. Notice too the storm around Tabasco. This is slightly inconvenient because it doesn't allow to have a clear view of the ground.
 
 ```{r}
 
@@ -111,6 +127,9 @@ It is a close replica to what we can see with our eyes. Isn't it pretty? Notice 
 
 plotRGB(mex_rgb, scale=0.63, colNA='skyblue1')
 ```
+
+<br>
+<br>
 
 # NDVI: Normalized Differential Vegetation Index
 
@@ -141,7 +160,7 @@ https://eos.com/blog/ndvi-faq-all-you-need-to-know-about-ndvi/)
 
 The NDVI is calculated using the near-infrared and red bands of the satellite image. The formula is
 $$NDVI = \frac{NIR - Red}{NIR + Red}.$$
-In this section we will create a map that outlines zones in Mexico with dense vegetation ($0.5\leq NDVI$) based on the   [https://github.com/oharac/esm244_w2021_lab6_rasters](code by C. O'Hara).
+In this section we create a map that outlines zones in Mexico with dense vegetation ($0.5\leq NDVI$), with code based on [https://github.com/oharac/esm244_w2021_lab6_rasters](this repository) by C. O'Hara.
 
 ```{r}
 # ---- NDVI calculation ----
@@ -167,8 +186,11 @@ ggplot() +
   geom_tile(data = df_dense, aes(x = x, y = y),fill = 'green4') +
   coord_sf(expand = 0) +
   scale_fill_gradient(low = 'black', high = 'white') +
+  labs(fill='NDVI')+
   theme_void()
 ```
+
+**Fig 1.** Zones in Mexico with median dense vegetation ($0.5\leq NDVI$) in color green, from 05/01/2013 to 05/01/2014 mapped over an NDVI map of the country.
 
 <!--
 ## Vegetation zones
@@ -225,8 +247,11 @@ In this section we will create a map that outlines zones in Mexico with dense ve
 ```
 
 # References
+**Boundary, Mexico, 2015.** Hijmans, Robert J. and University of California, Berkeley. Museum of Vertebrate Zoology.  
 https://geodata.lib.berkeley.edu/catalog/stanford-zc863pb5331
 
+**USGS Landsat 8 Collection 1 Tier 1 TOA Reflectance.** Dataset Provider: USGS/Google. 
 https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C01_T1_TOA
 
+**GitHub repository: esm244_w2021_lab6_rasters** C. O'Hara, 2021.
 https://github.com/oharac/esm244_w2021_lab6_rasters
